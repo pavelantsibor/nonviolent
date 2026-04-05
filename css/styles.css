@@ -561,45 +561,89 @@ p {
 }
 
 .giraffe-progress {
-  --pct: 0;
+  --course-progress: 0;
   margin: 12px 0;
 }
 
+/* Сцена: небо сверху, стены по 90% высоты, жираф снизу — шея растёт вверх, голова над шеей */
 .giraffe-progress__scene {
   position: relative;
-  height: 140px;
+  height: 152px;
   border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(125, 211, 252, 0.35) 0%, rgba(254, 243, 199, 0.9) 55%, rgba(234, 179, 8, 0.25) 100%);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.2) 0%, rgba(254, 243, 199, 0.85) 45%, rgba(234, 179, 8, 0.2) 100%);
   overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-.giraffe-progress__neck-wrap {
+.giraffe-progress__sky {
   position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: calc(36px + var(--pct) * 88px);
-  min-height: 36px;
-  transition: height 0.5s ease;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10%;
+  background: linear-gradient(180deg, rgba(125, 211, 252, 0.45), transparent);
+  pointer-events: none;
+  z-index: 0;
 }
 
-.giraffe-progress__neck {
-  width: 28px;
-  flex: 1;
-  min-height: 20px;
-  background: linear-gradient(90deg, #eab308, #facc15);
-  border-radius: 8px 8px 0 0;
-  border: 2px solid rgba(180, 83, 9, 0.35);
+/* Стены: 90% высоты сцены — голова жирафа оказывается над ними при ~90% пройденных шагов курса */
+.giraffe-progress__wall {
+  position: absolute;
+  bottom: 0;
+  width: 22px;
+  height: 90%;
+  z-index: 1;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(90deg, #78716c, #a8a29e, #78716c);
+  box-shadow: inset 2px 0 4px rgba(0, 0, 0, 0.15);
+  opacity: 0.92;
+}
+
+.giraffe-progress__wall--left {
+  left: 10px;
+}
+
+.giraffe-progress__wall--right {
+  right: 10px;
+}
+
+.giraffe-progress__giraffe {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  width: 44px;
+  height: max(10%, calc(var(--course-progress) * 100%));
+  min-height: 28px;
+  transition: height 0.55s ease;
+}
+
+/* column-reverse: в DOM сначала шея, потом голова — визуально голова сверху, шея растёт вниз к земле */
+.giraffe-progress__stack {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
 .giraffe-progress__head {
-  font-size: 2rem;
+  flex-shrink: 0;
+  font-size: 1.85rem;
   line-height: 1;
-  transform: translateY(2px);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.giraffe-progress__neck {
+  flex: 1 1 auto;
+  width: 26px;
+  min-height: 6px;
+  background: linear-gradient(90deg, #ca8a04, #eab308, #facc15);
+  border-radius: 4px 4px 10px 10px;
+  border: 2px solid rgba(180, 83, 9, 0.4);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.25);
 }
 
 .step-hint {
@@ -818,7 +862,7 @@ body.anim-flash-giraffe {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .giraffe-progress__neck-wrap {
+  .giraffe-progress__giraffe {
     transition: none;
   }
 

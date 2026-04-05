@@ -1,4 +1,10 @@
-import { getAllModules, MODULE_ORDER, getModule } from "./content/catalog.js";
+import {
+  getAllModules,
+  MODULE_ORDER,
+  getModule,
+  getTotalCourseSteps,
+  getCompletedCourseSteps,
+} from "./content/catalog.js";
 import * as storage from "./storage.js";
 import { LessonEngine } from "./lesson-engine.js";
 
@@ -32,8 +38,10 @@ function showHome() {
     })
     .join("");
 
-  const pct = total ? Math.round((completed / total) * 100) : 0;
-  const pctUnit = total ? completed / total : 0;
+  const totalLessonSteps = getTotalCourseSteps();
+  const doneLessonSteps = getCompletedCourseSteps(st);
+  const courseProgress =
+    totalLessonSteps > 0 ? Math.min(1, doneLessonSteps / totalLessonSteps) : 0;
   const giraffePoints = storage.getGiraffePoints();
 
   const collectionItems = MODULE_ORDER.filter((id) => st.completedModules.includes(id))
@@ -68,15 +76,20 @@ function showHome() {
 
       <div class="card">
         <h2 style="margin:0 0 8px;font-size:1rem">Ваш рост</h2>
-        <div class="giraffe-progress" style="--pct:${pctUnit}" role="img" aria-label="Прогресс: ${completed} из ${total} модулей">
+        <div class="giraffe-progress" style="--course-progress:${courseProgress}" role="img" aria-label="Пройдено шагов курса: ${doneLessonSteps} из ${totalLessonSteps}">
           <div class="giraffe-progress__scene">
-            <div class="giraffe-progress__neck-wrap">
-              <div class="giraffe-progress__neck"></div>
-              <div class="giraffe-progress__head" aria-hidden="true">🦒</div>
+            <div class="giraffe-progress__sky" aria-hidden="true"></div>
+            <div class="giraffe-progress__wall giraffe-progress__wall--left" aria-hidden="true"></div>
+            <div class="giraffe-progress__wall giraffe-progress__wall--right" aria-hidden="true"></div>
+            <div class="giraffe-progress__giraffe">
+              <div class="giraffe-progress__stack">
+                <div class="giraffe-progress__neck"></div>
+                <div class="giraffe-progress__head" aria-hidden="true">🦒</div>
+              </div>
             </div>
           </div>
         </div>
-        <p class="muted" style="margin:8px 0 4px;font-size:0.9rem">Модулей завершено: ${completed} из ${total}. Чем выше «шея», тем шире взгляд на ситуации.</p>
+        <p class="muted" style="margin:8px 0 4px;font-size:0.9rem">Шагов пройдено: <strong>${doneLessonSteps}</strong> из <strong>${totalLessonSteps}</strong>. Модулей завершено: ${completed} из ${total}. Шея растёт снизу вверх; по бокам — «стены» ограничений. Их высота — 90% пути: когда голова окажется над ними (после ~90% шагов), вы смотрите на ситуацию шире — без этих рамок.</p>
         <p class="muted" style="margin:0;font-size:0.9rem">Мягкие баллы Жирафа (всего): <strong>${giraffePoints}</strong> — без штрафов, только поддержка интереса.</p>
       </div>
 
