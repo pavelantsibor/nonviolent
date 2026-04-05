@@ -1,0 +1,20 @@
+{
+  "positive": [
+    { "id": "joy", "label": "Радость" },
+    { "id": "inspire", "label": "Вдохновение" },
+    { "id": "relief", "label": "Облегчение" },
+    { "id": "tender", "label": "Умиление" },
+    { "id": "calm", "label": "Спокойствие" },
+    { "id": "hope", "label": "Надежда" },
+    { "id": "gratitude", "label": "Благодарность" }
+  ],
+  "heavy": [
+    { "id": "sad", "label": "Грусть" },
+    { "id": "disappoint", "label": "Разочарование" },
+    { "id": "anxiety", "label": "Тревога" },
+    { "id": "frustration", "label": "Фрустрация" },
+    { "id": "anger", "label": "Злость" },
+    { "id": "lonely", "label": "Одиночество" },
+    { "id": "shame", "label": "Стыд" }
+  ]
+}
