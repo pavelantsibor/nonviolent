@@ -4,7 +4,13 @@ export default {
   title: "С друзьями",
   goal: "Сказать другу, что вам больно от его шутки, без обвинения в злом умысле.",
   estimatedMinutes: 6,
-  badge: { id: "badge-friends", label: "Дружеский Жираф", emoji: "🤝" },
+  badge: {
+    id: "badge-friends",
+    label: "Дружеский Жираф",
+    emoji: "🤝",
+    giftTitle: "Мостик доверия",
+    giftDescription: "Можно говорить о границах в шутках и оставаться в связи.",
+  },
   steps: [
     {
       type: "theory",

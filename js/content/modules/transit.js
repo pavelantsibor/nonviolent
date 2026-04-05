@@ -4,7 +4,13 @@ export default {
   title: "В транспорте",
   goal: "Попросить человека сделать громкость музыки тише, сохраняя уважение к его автономии.",
   estimatedMinutes: 5,
-  badge: { id: "badge-transit", label: "Транспортный Жираф", emoji: "🚌" },
+  badge: {
+    id: "badge-transit",
+    label: "Транспортный Жираф",
+    emoji: "🚌",
+    giftTitle: "Наушники гармонии",
+    giftDescription: "Символ уважения к своему пространству и чужому.",
+  },
   steps: [
     {
       type: "theory",

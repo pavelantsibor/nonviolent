@@ -4,7 +4,13 @@ export default {
   title: "Дома",
   goal: "Договориться о тишине для работы, не обесценивая потребность партнёра в общении.",
   estimatedMinutes: 6,
-  badge: { id: "badge-home", label: "Домашний Жираф", emoji: "🏠" },
+  badge: {
+    id: "badge-home",
+    label: "Домашний Жираф",
+    emoji: "🏠",
+    giftTitle: "Успокаивающий чай",
+    giftDescription: "Напоминание о праве на тишину и близость без давления.",
+  },
   steps: [
     {
       type: "theory",

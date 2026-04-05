@@ -33,13 +33,22 @@ function showHome() {
     .join("");
 
   const pct = total ? Math.round((completed / total) * 100) : 0;
+  const pctUnit = total ? completed / total : 0;
+  const giraffePoints = storage.getGiraffePoints();
 
   const collectionItems = MODULE_ORDER.filter((id) => st.completedModules.includes(id))
     .map((id) => {
       const mod = getModule(id);
-      return mod?.badge
-        ? `<div class="collection-item" title="${escapeHtml(mod.badge.label)}"><span>${mod.badge.emoji}</span><span>${escapeHtml(mod.badge.label)}</span></div>`
-        : "";
+      if (!mod?.badge) return "";
+      const g = mod.badge;
+      const giftTitle = g.giftTitle || g.label;
+      const giftDesc = g.giftDescription || "";
+      return `
+        <div class="gift-card" title="${escapeHtml(giftTitle)}">
+          <span class="gift-card__emoji" aria-hidden="true">${g.emoji || "🦒"}</span>
+          <strong class="gift-card__title">${escapeHtml(giftTitle)}</strong>
+          <p class="gift-card__desc muted">${escapeHtml(giftDesc)}</p>
+        </div>`;
     })
     .join("");
 
@@ -52,33 +61,37 @@ function showHome() {
   app.innerHTML = `
     <section class="screen is-active" id="screen-home">
       <div class="hero">
-        <div class="hero__emoji" aria-hidden="true">🦒</div>
+        <div class="hero-mascots" aria-hidden="true"><span class="hero-mascots__g">🦒</span><span class="hero-mascots__w">🐺</span></div>
         <h1>ННО Тренажёр</h1>
         <p class="muted">Ненасильственное общение: язык Жирафа и язык Волка. Маршалл Розенберг, «язык жизни».</p>
       </div>
 
       <div class="card">
-        <h2 style="margin:0 0 8px;font-size:1rem">Ваш прогресс</h2>
-        <div class="progress-wrap">
-          <div class="progress-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar__fill" style="width:${pct}%"></div>
+        <h2 style="margin:0 0 8px;font-size:1rem">Ваш рост</h2>
+        <div class="giraffe-progress" style="--pct:${pctUnit}" role="img" aria-label="Прогресс: ${completed} из ${total} модулей">
+          <div class="giraffe-progress__scene">
+            <div class="giraffe-progress__neck-wrap">
+              <div class="giraffe-progress__neck"></div>
+              <div class="giraffe-progress__head" aria-hidden="true">🦒</div>
+            </div>
           </div>
         </div>
-        <p class="muted" style="margin:0;font-size:0.9rem">Модулей завершено: ${completed} из ${total}</p>
+        <p class="muted" style="margin:8px 0 4px;font-size:0.9rem">Модулей завершено: ${completed} из ${total}. Чем выше «шея», тем шире взгляд на ситуации.</p>
+        <p class="muted" style="margin:0;font-size:0.9rem">Мягкие баллы Жирафа (всего): <strong>${giraffePoints}</strong> — без штрафов, только поддержка интереса.</p>
       </div>
 
       <h2 class="muted" style="font-size:0.85rem;margin:20px 0 10px">Модули</h2>
       ${cards}
 
       <div class="card" style="margin-top:16px">
-        <h2 style="margin:0 0 8px;font-size:1rem">Коллекция Жирафа</h2>
-        <p class="muted" style="font-size:0.85rem;margin:0 0 10px">Награды за модули — без гонки и дедлайнов.</p>
+        <h2 style="margin:0 0 8px;font-size:1rem">Подарки гармонии</h2>
+        <p class="muted" style="font-size:0.85rem;margin:0 0 10px">Предметы для «комнаты Жирафа» — напоминание о росте, а не гонка.</p>
         ${collectionBlock}
         ${lockedSlots ? `<p class="muted" style="font-size:0.8rem;margin-top:8px">Ещё ${lockedSlots} модул(ей) — по порядку или по желанию.</p>` : ""}
       </div>
 
       <p style="margin-top:16px">
-        <button type="button" class="btn btn--secondary" id="btn-reference">Справочник чувств и потребностей</button>
+        <button type="button" class="btn btn--secondary" id="btn-reference">Дневник чувств и справочник</button>
       </p>
       <p style="margin-top:8px">
         <button type="button" class="btn btn--ghost" id="btn-reset">Сбросить прогресс</button>
@@ -121,11 +134,16 @@ function escapeHtml(str) {
 async function showReference() {
   let feelingsHtml = "";
   let needsHtml = "";
+  let feelingsData = [];
   try {
     const [fr, nr] = await Promise.all([
       fetch("data/reference/feelings.json").then((r) => r.json()),
       fetch("data/reference/needs.json").then((r) => r.json()),
     ]);
+    feelingsData = [
+      ...(fr.positive || []).map((x) => ({ ...x, group: "positive" })),
+      ...(fr.heavy || []).map((x) => ({ ...x, group: "heavy" })),
+    ];
     const pos = (fr.positive || []).map((x) => `<li>${escapeHtml(x.label)}</li>`).join("");
     const hvy = (fr.heavy || []).map((x) => `<li>${escapeHtml(x.label)}</li>`).join("");
     feelingsHtml = `
@@ -141,7 +159,7 @@ async function showReference() {
       )
       .join("");
   } catch {
-    feelingsHtml = "<p class=\"muted\">Откройте приложение через локальный сервер (например, <code>npx serve</code>), чтобы загрузить справочники.</p>";
+    feelingsHtml = "<p class=\"muted\">Откройте приложение через локальный сервер (например, <code>python -m http.server</code>), чтобы загрузить справочники.</p>";
   }
 
   let wolfHtml = "";
@@ -152,14 +170,32 @@ async function showReference() {
     wolfHtml = "";
   }
 
+  const diaryIds = storage.getFeelingsDiary();
+  const diaryChips =
+    feelingsData.length > 0
+      ? `<div class="diary-chips" role="group" aria-label="Что я чувствую сейчас">
+          <p class="muted" style="margin:0 0 10px">Нажмите слова — это самоэмпатия, не оценка. Сохранится в браузере.</p>
+          ${feelingsData
+            .map((f) => {
+              const on = diaryIds.includes(f.id) ? " is-on" : "";
+              return `<button type="button" class="diary-chip${on}" data-feeling-id="${escapeHtml(f.id)}">${escapeHtml(f.label)}</button>`;
+            })
+            .join("")}
+        </div>`
+      : "";
+
   app.innerHTML = `
     <section class="screen is-active">
       <div class="lesson-header">
         <div>
           <span class="tag">Справочник</span>
-          <h2>Чувства и потребности</h2>
+          <h2>Дневник чувств</h2>
         </div>
         <button type="button" class="lesson-header__close" id="ref-close" aria-label="Назад">×</button>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Сейчас</h3>
+        ${diaryChips || "<p class=\"muted\">Нет списка чувств — загрузите справочник через сервер.</p>"}
       </div>
       <div class="card">${feelingsHtml}</div>
       <div class="card">${needsHtml}</div>
@@ -172,6 +208,17 @@ async function showReference() {
   `;
   document.getElementById("ref-close")?.addEventListener("click", showHome);
   document.getElementById("ref-back")?.addEventListener("click", showHome);
+
+  app.querySelectorAll(".diary-chip[data-feeling-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-feeling-id");
+      let cur = storage.getFeelingsDiary();
+      if (cur.includes(id)) cur = cur.filter((x) => x !== id);
+      else cur = [...cur, id];
+      storage.saveFeelingsDiary(cur);
+      btn.classList.toggle("is-on", cur.includes(id));
+    });
+  });
 }
 
 function startLesson(moduleId) {
@@ -185,11 +232,12 @@ function startLesson(moduleId) {
   const saved = storage.getStepIndex(moduleId);
   currentEngine = new LessonEngine(mod, container, {
     onStepChange: (i) => storage.setStepIndex(moduleId, i),
-    onComplete: (m) => {
+    onComplete: (m, meta) => {
       storage.markModuleCompleted(m.id);
       if (m.badge?.id) storage.addCollectionItem(m.badge.id);
+      if (meta?.points) storage.addGiraffePoints(meta.points);
       storage.setStepIndex(m.id, 0);
-      showSummary(m);
+      showSummary(m, meta?.points ?? 0);
     },
   });
 
@@ -205,7 +253,9 @@ function startLesson(moduleId) {
   );
 }
 
-function showSummary(mod) {
+function showSummary(mod, sessionPoints) {
+  const gift = mod.badge?.giftTitle || mod.badge?.label || "подарок";
+  const giftDesc = mod.badge?.giftDescription || "";
   app.innerHTML = `
     <section class="screen is-active">
       <div class="hero">
@@ -214,7 +264,9 @@ function showSummary(mod) {
         <p class="muted">${escapeHtml(mod.title)}</p>
       </div>
       <div class="card">
-        <p>В коллекцию добавлено: <strong>${escapeHtml(mod.badge?.label || "значок")}</strong>.</p>
+        <p>В коллекцию добавлено: <strong>${escapeHtml(gift)}</strong>.</p>
+        ${giftDesc ? `<p class="muted" style="margin-top:8px">${escapeHtml(giftDesc)}</p>` : ""}
+        <p class="muted" style="margin-top:12px">Баллы за этот заход: <strong>${sessionPoints}</strong> (2 — «чистый Жираф», 1 — «старающийся», 0 — сигнал, не провал).</p>
         <p class="muted" style="margin:0">Продолжайте в своём темпе — без штрафов за паузы.</p>
       </div>
       <button type="button" class="btn btn--primary" id="sum-continue">К модулям</button>

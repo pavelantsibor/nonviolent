@@ -2,7 +2,7 @@
  * Состояние приложения в localStorage
  */
 const KEY = "nvc-trainer-v1";
-const SCHEMA = 1;
+const SCHEMA = 2;
 
 function defaultState() {
   return {
@@ -12,6 +12,8 @@ function defaultState() {
     stepProgress: {},
     collection: [],
     stats: { sessions: 0 },
+    giraffePoints: 0,
+    feelingsDiary: [],
   };
 }
 
@@ -32,6 +34,11 @@ export function loadState() {
 function migrate(old) {
   const n = defaultState();
   if (Array.isArray(old.completedModules)) n.completedModules = old.completedModules;
+  if (typeof old.giraffePoints === "number") n.giraffePoints = old.giraffePoints;
+  if (Array.isArray(old.collection)) n.collection = old.collection;
+  if (Array.isArray(old.feelingsDiary)) n.feelingsDiary = old.feelingsDiary;
+  if (old.stepProgress && typeof old.stepProgress === "object") n.stepProgress = old.stepProgress;
+  saveState(n);
   return n;
 }
 
@@ -80,4 +87,28 @@ export function isModuleUnlocked(moduleId, moduleOrder) {
 
 export function resetProgress() {
   saveState(defaultState());
+}
+
+/** Мягкие баллы «жирафьей» вовлечённости (2 / 1 / 0 за шаги) */
+export function addGiraffePoints(delta) {
+  const s = loadState();
+  const n = Math.max(0, Math.round(Number(delta)) || 0);
+  s.giraffePoints = (s.giraffePoints || 0) + n;
+  saveState(s);
+  return s.giraffePoints;
+}
+
+export function getGiraffePoints() {
+  return loadState().giraffePoints || 0;
+}
+
+/** Дневник самоэмпатии: id чувств из справочника */
+export function saveFeelingsDiary(feelingIds) {
+  const s = loadState();
+  s.feelingsDiary = Array.isArray(feelingIds) ? feelingIds.slice(0, 24) : [];
+  saveState(s);
+}
+
+export function getFeelingsDiary() {
+  return loadState().feelingsDiary || [];
 }
