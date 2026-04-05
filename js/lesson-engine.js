@@ -299,7 +299,6 @@ export class LessonEngine {
     }
 
     if (step.type === "select") {
-      let chosen = null;
       const fb = this.container.querySelector("#select-feedback");
       const nextBtn = this.container.querySelector("#select-next");
       this.container.querySelectorAll(".choice[data-select-id]").forEach((btn) => {
@@ -308,7 +307,6 @@ export class LessonEngine {
           btn.classList.add("is-selected");
           const id = btn.getAttribute("data-select-id");
           const opt = (step.options || []).find((o) => o.id === id);
-          chosen = opt;
           if (fb && opt) {
             fb.hidden = false;
             let cls = "feedback--partial";
