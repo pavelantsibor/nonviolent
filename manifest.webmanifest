@@ -1,0 +1,20 @@
+{
+  "name": "ННО Тренажёр — язык Жирафа",
+  "short_name": "ННО Тренажёр",
+  "description": "Интерактивное обучение ненасильственному общению (ННО) по Маршаллу Розенбергу.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f0e8",
+  "theme_color": "#c4705a",
+  "lang": "ru",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

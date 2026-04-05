@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Жираф">
+  <rect width="128" height="128" rx="24" fill="#f5f0e8"/>
+  <ellipse cx="64" cy="78" rx="36" ry="28" fill="#e8b234"/>
+  <!-- пятна на «шкуре» -->
+  <ellipse cx="52" cy="72" rx="9" ry="7" fill="#8b6f4d" fill-opacity="0.55"/>
+  <ellipse cx="74" cy="80" rx="8" ry="6" fill="#8b6f4d" fill-opacity="0.5"/>
+  <ellipse cx="64" cy="88" rx="6" ry="5" fill="#8b6f4d" fill-opacity="0.45"/>
+  <ellipse cx="44" cy="82" rx="5" ry="4" fill="#8b6f4d" fill-opacity="0.4"/>
+  <ellipse cx="64" cy="40" rx="22" ry="26" fill="#e8b234"/>
+  <ellipse cx="48" cy="38" rx="5" ry="6" fill="#8b6f4d" fill-opacity="0.42"/>
+  <ellipse cx="52" cy="36" rx="8" ry="10" fill="#c49a2c"/>
+  <ellipse cx="76" cy="36" rx="8" ry="10" fill="#c49a2c"/>
+  <circle cx="56" cy="38" r="3" fill="#1f1d1a"/>
+  <circle cx="72" cy="38" r="3" fill="#1f1d1a"/>
+  <ellipse cx="64" cy="48" rx="6" ry="4" fill="#c49a2c"/>
+  <path d="M64 54 L58 62 L70 62 Z" fill="#b45309"/>
+  <rect x="58" y="8" width="12" height="22" rx="4" fill="#e8b234"/>
+  <ellipse cx="64" cy="6" rx="10" ry="6" fill="#c49a2c"/>
+  <path d="M40 88 L32 118 L44 118 L48 92 Z" fill="#c49a2c"/>
+  <path d="M88 88 L96 118 L84 118 L80 92 Z" fill="#c49a2c"/>
+</svg>

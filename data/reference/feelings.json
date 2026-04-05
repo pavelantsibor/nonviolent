@@ -1,0 +1,175 @@
+{
+  "meta": {
+    "title": "Колесо эмоций",
+    "note": "Упрощённая группировка для самоэмпатии; пересечения между группами возможны."
+  },
+  "groups": [
+    {
+      "id": "pleasant_energetic",
+      "label": "Радостные и энергичные",
+      "subgroups": [
+        {
+          "id": "joy_inspire",
+          "label": "Радость и вдохновение",
+          "items": [
+            { "id": "joy", "label": "Радость" },
+            { "id": "inspire", "label": "Вдохновение" },
+            { "id": "delight", "label": "Восторг" },
+            { "id": "uplift", "label": "Оживление" }
+          ]
+        },
+        {
+          "id": "tender_warm",
+          "label": "Нежность и тепло",
+          "items": [
+            { "id": "tender", "label": "Умиление" },
+            { "id": "tenderness", "label": "Нежность" },
+            { "id": "gratitude", "label": "Благодарность" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "peaceful_content",
+      "label": "Спокойные и удовлетворённые",
+      "subgroups": [
+        {
+          "id": "calm_rest",
+          "label": "Покой",
+          "items": [
+            { "id": "calm", "label": "Спокойствие" },
+            { "id": "serenity", "label": "Умиротворение" },
+            { "id": "relaxed", "label": "Расслабление" }
+          ]
+        },
+        {
+          "id": "relief_hope",
+          "label": "Облегчение и надежда",
+          "items": [
+            { "id": "relief", "label": "Облегчение" },
+            { "id": "satisfaction", "label": "Удовлетворение" },
+            { "id": "hope", "label": "Надежда" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "connected_trusting",
+      "label": "Благодарные и связанные",
+      "subgroups": [
+        {
+          "id": "appreciation_trust",
+          "label": "Признательность и доверие",
+          "items": [
+            { "id": "appreciation", "label": "Признательность" },
+            { "id": "warmth", "label": "Тепло" },
+            { "id": "trust", "label": "Доверие" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sad_heavy",
+      "label": "Грустные и тягостные",
+      "subgroups": [
+        {
+          "id": "loss_sorrow",
+          "label": "Печаль и потеря",
+          "items": [
+            { "id": "sad", "label": "Грусть" },
+            { "id": "sorrow", "label": "Печаль" },
+            { "id": "melancholy", "label": "Тоска" }
+          ]
+        },
+        {
+          "id": "disappoint_lonely",
+          "label": "Разочарование и отдаление",
+          "items": [
+            { "id": "disappoint", "label": "Разочарование" },
+            { "id": "regret", "label": "Сожаление" },
+            { "id": "lonely", "label": "Одиночество" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "anxious_fearful",
+      "label": "Тревожные и испуганные",
+      "subgroups": [
+        {
+          "id": "anxiety_unease",
+          "label": "Тревога и неуверенность",
+          "items": [
+            { "id": "anxiety", "label": "Тревога" },
+            { "id": "unease", "label": "Неуверенность" },
+            { "id": "timid", "label": "Робость" }
+          ]
+        },
+        {
+          "id": "fear_worry",
+          "label": "Страх и беспокойство",
+          "items": [
+            { "id": "fear", "label": "Страх" },
+            { "id": "embarrassment", "label": "Смущение" },
+            { "id": "worry", "label": "Беспокойство" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "angry_tense",
+      "label": "Злые и напряжённые",
+      "subgroups": [
+        {
+          "id": "anger_irritation",
+          "label": "Злость и раздражение",
+          "items": [
+            { "id": "anger", "label": "Злость" },
+            { "id": "irritation", "label": "Раздражение" },
+            { "id": "frustration", "label": "Фрустрация" }
+          ]
+        },
+        {
+          "id": "annoyance_hurt",
+          "label": "Досада и обида",
+          "items": [
+            { "id": "annoyance", "label": "Досада" },
+            { "id": "resentment", "label": "Обида" },
+            { "id": "indignation", "label": "Негодование" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shame_guilt",
+      "label": "Стыд и вина",
+      "subgroups": [
+        {
+          "id": "shame_guilt_sg",
+          "label": "Уязвимость",
+          "items": [
+            { "id": "shame", "label": "Стыд" },
+            { "id": "guilt", "label": "Вина" },
+            { "id": "shyness", "label": "Застенчивость" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "surprise_mixed",
+      "label": "Удивлённые и смешанные",
+      "subgroups": [
+        {
+          "id": "surprise_curiosity",
+          "label": "Удивление и любопытство",
+          "items": [
+            { "id": "surprise", "label": "Удивление" },
+            { "id": "confusion", "label": "Замешательство" },
+            { "id": "curiosity", "label": "Любопытство" },
+            { "id": "ambivalence", "label": "Неоднозначность" }
+          ]
+        }
+      ]
+    }
+  ]
+}

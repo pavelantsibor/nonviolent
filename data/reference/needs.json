@@ -1,0 +1,40 @@
+{
+  "categories": [
+    {
+      "id": "autonomy",
+      "label": "Автономия",
+      "items": [
+        { "id": "choice", "label": "Выбор и свобода действий" },
+        { "id": "space", "label": "Пространство и время для себя" },
+        { "id": "clarity", "label": "Ясность и предсказуемость" }
+      ]
+    },
+    {
+      "id": "connection",
+      "label": "Связь",
+      "items": [
+        { "id": "care", "label": "Забота и внимание" },
+        { "id": "understanding", "label": "Понимание" },
+        { "id": "empathy", "label": "Сопереживание" }
+      ]
+    },
+    {
+      "id": "life_enjoy",
+      "label": "Наслаждение жизнью",
+      "items": [
+        { "id": "play", "label": "Игра и лёгкость" },
+        { "id": "rest", "label": "Покой и отдых" },
+        { "id": "harmony", "label": "Гармония и красота" }
+      ]
+    },
+    {
+      "id": "integrity",
+      "label": "Целостность",
+      "items": [
+        { "id": "love", "label": "Любовь и тепло" },
+        { "id": "acceptance", "label": "Принятие" },
+        { "id": "respect", "label": "Уважение" }
+      ]
+    }
+  ]
+}
