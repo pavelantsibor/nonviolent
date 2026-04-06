@@ -193,26 +193,15 @@ export default {
       nodes: {
         t1: {
           speaker: "them",
-          messages: ["👂 А?", "❓ Слушаю."],
+          messages: ["👂 А?", "🎧 Я в своих мыслях, не сразу понял(а).", "❓ Что случилось?"],
           choices: [
             {
-              text: "😡 Да ты оглох? Выруби!",
+              text: "😡 Да ты что, оглох? Выруби немедленно!",
               next: "t2a",
               tone: "wolf",
             },
             {
-              text: "🙏 Извините, музыка из наушников очень громко.",
-              next: "t1g",
-              tone: "giraffe",
-            },
-          ],
-        },
-        t1g: {
-          speaker: "them",
-          messages: ["😬 Ой.", "🔉 Правда громко?"],
-          choices: [
-            {
-              text: "👍 Можно чуть тише?",
+              text: "🙏 Извините, слышу музыку из наушников очень громко. Можете чуть уменьшить громкость?",
               next: "t2b",
               tone: "giraffe",
             },
@@ -220,18 +209,28 @@ export default {
         },
         t2a: {
           speaker: "them",
-          messages: ["😠 Сам уйди.", "🚶 Другой вагон."],
-          choices: [{ text: "🛑 Ок. Или к сотруднику метро.", next: "end", tone: "neutral" }],
+          messages: ["😤 Сам иди в другой вагон.", "🙄 Я тут не виноват(а), что тебе не нравится."],
+          choices: [{ text: "🛑 Остановиться. При необходимости — перейти в другой вагон или обратиться к сотруднику транспорта.", next: "t2a2", tone: "neutral" }],
+        },
+        t2a2: {
+          speaker: "them",
+          messages: ["😐 Ладно, делай как знаешь.", "👋 Только не лезь ко мне с моралью."],
+          choices: [{ text: "⏸️ Прервать разговор и отойти.", next: "end", tone: "neutral" }],
         },
         t2b: {
           speaker: "them",
-          messages: ["😌 Понял(а).", "🙏 Извини.", "🔉 Сейчас уберу."],
+          messages: ["😌 А, понял(а).", "🙏 Извини, не заметил(а).", "🔉 Сейчас уберу — секунду."],
           choices: [{ text: "🙏 Спасибо.", next: "t3b", tone: "giraffe" }],
         },
         t3b: {
           speaker: "them",
-          messages: ["👌 Готово.", "🙂 Так лучше?"],
-          choices: [{ text: "👍 Да.", next: "end", tone: "neutral" }],
+          messages: ["✅ Готово, так норм?", "🙂 Если ещё громко — скажи, не стесняйся."],
+          choices: [{ text: "👍 Да, так хорошо. Спасибо.", next: "t4b", tone: "neutral" }],
+        },
+        t4b: {
+          speaker: "them",
+          messages: ["👋 Хорошего дня."],
+          choices: [{ text: "🙏 И вам.", next: "end", tone: "neutral" }],
         },
         end: {
           speaker: "them",
