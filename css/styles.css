@@ -811,15 +811,70 @@ p {
   outline-offset: 2px;
 }
 
-.dialog-bubble {
-  padding: 14px 16px;
-  border-radius: var(--radius-sm);
+.dialog-messenger {
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.55) 0%, transparent 42%),
+    linear-gradient(165deg, #e8e4dc 0%, #ddd8cf 48%, #d4cfc4 100%);
+  box-shadow: var(--shadow);
+  overflow: hidden;
   margin-bottom: 12px;
-  max-width: 95%;
+}
+
+.dialog-scroll {
+  max-height: min(52vh, 380px);
+  min-height: 120px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 10px 14px;
+}
+
+.dialog-scroll:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(196, 112, 90, 0.35);
+}
+
+.dialog-row {
+  display: flex;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.dialog-row--them {
+  justify-content: flex-start;
+}
+
+.dialog-row--you {
+  justify-content: flex-end;
+}
+
+.dialog-empty {
+  margin: 8px 0;
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.dialog-choices {
+  margin-top: 4px;
+}
+
+.dialog-bubble {
+  padding: 10px 14px;
+  border-radius: 18px;
+  margin-bottom: 0;
+  max-width: min(92%, 340px);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  word-wrap: break-word;
 }
 
 .dialog-bubble--enter {
   animation: dialogBubbleIn var(--motion-duration) var(--motion-ease) both;
+  animation-delay: var(--dialog-bubble-delay, 0s);
 }
 
 @keyframes dialogBubbleIn {
@@ -834,22 +889,22 @@ p {
 }
 
 .dialog-bubble--them {
-  background: rgba(74, 55, 40, 0.07);
-  align-self: flex-start;
-  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  border: 1px solid rgba(74, 55, 40, 0.08);
+  box-shadow: 0 1px 2px rgba(47, 39, 31, 0.06);
 }
 
 .dialog-bubble--you {
-  background: var(--accent-soft);
-  margin-left: auto;
-  border: 1px solid rgba(196, 112, 90, 0.28);
+  background: linear-gradient(180deg, #e7f7d4 0%, #dcf3c5 100%);
+  border: 1px solid rgba(76, 120, 62, 0.28);
+  box-shadow: 0 1px 2px rgba(47, 39, 31, 0.06);
 }
 
 .dialog-stack {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 0;
+  margin-bottom: 0;
 }
 
 .build-slots {

@@ -198,7 +198,7 @@ export default {
       nodes: {
         s1: {
           speaker: "them",
-          text: "Добрый вечер! Как вам всё?",
+          messages: ["Добрый вечер!", "Как вам всё?"],
           choices: [
             {
               text: "Ужасно, как всегда у вас.",
@@ -214,13 +214,18 @@ export default {
         },
         s2a: {
           speaker: "them",
-          text: "Простите… уточните, что не так?",
+          messages: ["Простите…", "Уточните, что не так?"],
           choices: [{ text: "Вернуться к факту о заказе и просьбе.", next: "end", tone: "neutral" }],
         },
         s2b: {
           speaker: "them",
-          text: "Конечно, передам на кухню и уточню. Пять минут вас устроят?",
-          choices: [{ text: "Да, спасибо за помощь.", next: "end", tone: "neutral" }],
+          messages: ["Конечно, передам на кухню и уточню.", "Пять минут вас устроят?"],
+          choices: [{ text: "Да, спасибо за помощь.", next: "s3b", tone: "giraffe" }],
+        },
+        s3b: {
+          speaker: "them",
+          messages: ["Сейчас уточню на кухне.", "Как будет готово — поднесём."],
+          choices: [{ text: "Хорошо, жду.", next: "end", tone: "neutral" }],
         },
         end: {
           speaker: "them",

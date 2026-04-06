@@ -111,6 +111,11 @@ export class LessonEngine {
     this._sectionMaxMap = buildSectionMaxMap(moduleData);
     this._sectionEarned = {};
     this._buildSnapKey = null;
+    /** История «мессенджера» для шагов type: dialog */
+    this._dialogHistory = [];
+    this._dialogHistoryStepIndex = -1;
+    this._dialogAppendedNodeIds = new Set();
+    this._dialogPrevHistoryLen = 0;
   }
 
   _sectionKey(step) {
@@ -472,31 +477,81 @@ export class LessonEngine {
     `;
   }
 
+  /** Тексты собеседника для узла: `messages: []` или одно поле `text` */
+  _dialogThemMessages(node) {
+    if (!node) return [];
+    if (Array.isArray(node.messages) && node.messages.length) {
+      return node.messages.map((s) => String(s).trim()).filter(Boolean);
+    }
+    if (node.text && String(node.text).trim()) {
+      return [String(node.text).trim()];
+    }
+    return [];
+  }
+
+  /** Добавить в историю реплики собеседника для текущего узла (один раз на узел) */
+  _appendDialogThemForCurrentNode(step) {
+    const id = this.dialogNodeId;
+    if (!id || id === "end" || this._dialogAppendedNodeIds.has(id)) return;
+    const node = (step.nodes || {})[id];
+    if (!node || node.speaker !== "them") return;
+    const msgs = this._dialogThemMessages(node);
+    if (msgs.length === 0) {
+      this._dialogAppendedNodeIds.add(id);
+      return;
+    }
+    for (const t of msgs) {
+      this._dialogHistory.push({ speaker: "them", text: t });
+    }
+    this._dialogAppendedNodeIds.add(id);
+  }
+
   _renderDialog(step) {
     const start = step.start || "n1";
     if (!this.dialogNodeId) {
       this.dialogNodeId = start;
       this.dialogTemp = 50;
     }
+
+    if (this._dialogHistoryStepIndex !== this.stepIndex) {
+      this._dialogHistory = [];
+      this._dialogAppendedNodeIds = new Set();
+      this._dialogHistoryStepIndex = this.stepIndex;
+      this._dialogPrevHistoryLen = 0;
+    }
+
+    this._appendDialogThemForCurrentNode(step);
+
     const node = (step.nodes || {})[this.dialogNodeId];
     if (!node) {
       return `<p>Ошибка диалога.</p><button type="button" class="btn btn--primary" data-action="dialog-finish">Далее</button>`;
     }
-    const bubbleClass = node.speaker === "you" ? "dialog-bubble--you" : "dialog-bubble--them";
+
+    const historyLen = this._dialogHistory.length;
+    const newFrom = this._dialogPrevHistoryLen;
+    this._dialogPrevHistoryLen = historyLen;
+
+    const bubblesHtml = this._dialogHistory
+      .map((m, i) => {
+        const side = m.speaker === "you" ? "you" : "them";
+        const enter = i >= newFrom ? " dialog-bubble--enter" : "";
+        const delay = i >= newFrom ? ` style="--dialog-bubble-delay:${(i - newFrom) * 0.07}s"` : "";
+        return `
+        <div class="dialog-row dialog-row--${side}">
+          <div class="dialog-bubble dialog-bubble--${side}${enter}"${delay}>${escapeHtml(m.text)}</div>
+        </div>`;
+      })
+      .join("");
+
     const choices = (node.choices || [])
       .map(
         (c, i) => `
-      <button type="button" class="choice choice--appear" style="--choice-delay:${i * 0.05}s" data-dialog-next="${escapeHtml(c.next)}" data-tone="${escapeHtml(c.tone || "neutral")}">
+      <button type="button" class="choice choice--appear dialog-choice" style="--choice-delay:${i * 0.05}s" data-dialog-choice-idx="${i}" data-dialog-next="${escapeHtml(c.next)}" data-tone="${escapeHtml(c.tone || "neutral")}">
         ${escapeHtml(c.text)}
       </button>
     `
       )
       .join("");
-
-    const text =
-      node.text && node.text.trim()
-        ? escapeHtml(node.text)
-        : "<em class=\"muted\">Диалог завершён.</em>";
 
     const continueBtn =
       !node.choices || node.choices.length === 0
@@ -507,10 +562,12 @@ export class LessonEngine {
 
     return `
       ${thermo}
-      <div class="dialog-stack">
-        <div class="dialog-bubble dialog-bubble--enter ${bubbleClass}">${text}</div>
+      <div class="dialog-messenger" aria-label="Диалог в формате переписки">
+        <div class="dialog-scroll" id="dialog-scroll">
+          <div class="dialog-stack">${bubblesHtml}</div>
+        </div>
       </div>
-      ${choices ? `<div class="choice-list">${choices}</div>` : ""}
+      ${choices ? `<div class="choice-list dialog-choices">${choices}</div>` : ""}
       ${continueBtn}
     `;
   }
@@ -905,6 +962,14 @@ export class LessonEngine {
       this.container.querySelectorAll("[data-dialog-next]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const tone = btn.getAttribute("data-tone") || "neutral";
+          const idx = parseInt(btn.getAttribute("data-dialog-choice-idx") || "-1", 10);
+          const curId = this.dialogNodeId;
+          const curNode = curId ? (step.nodes || {})[curId] : null;
+          const choices = curNode?.choices || [];
+          const picked = idx >= 0 && choices[idx] ? choices[idx] : null;
+          if (picked?.text) {
+            this._dialogHistory.push({ speaker: "you", text: picked.text });
+          }
           this._applyTone(tone);
           const nextId = btn.getAttribute("data-dialog-next");
           this.dialogNodeId = nextId;
@@ -913,6 +978,12 @@ export class LessonEngine {
       });
       const finish = this.container.querySelector('[data-action="dialog-finish"]');
       if (finish) finish.addEventListener("click", () => this._advance());
+      const scrollDialog = () => {
+        const sc = this.container.querySelector("#dialog-scroll");
+        if (sc) sc.scrollTop = sc.scrollHeight;
+      };
+      requestAnimationFrame(scrollDialog);
+      setTimeout(scrollDialog, 120);
     }
 
     if (step.type === "build") {

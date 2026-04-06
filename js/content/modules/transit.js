@@ -193,7 +193,7 @@ export default {
       nodes: {
         t1: {
           speaker: "them",
-          text: "А? Что?",
+          messages: ["А?", "Что случилось?"],
           choices: [
             {
               text: "Да ты что, оглох? Выруби немедленно!",
@@ -209,13 +209,18 @@ export default {
         },
         t2a: {
           speaker: "them",
-          text: "Сам иди в другой вагон.",
+          messages: ["Сам иди в другой вагон."],
           choices: [{ text: "Остановиться. При необходимости — перейти в другой вагон или обратиться к сотруднику транспорта.", next: "end", tone: "neutral" }],
         },
         t2b: {
           speaker: "them",
-          text: "А, понял(а). Извини, не заметил(а).",
-          choices: [{ text: "Спасибо.", next: "end", tone: "neutral" }],
+          messages: ["А, понял(а).", "Извини, не заметил(а)."],
+          choices: [{ text: "Спасибо.", next: "t3b", tone: "giraffe" }],
+        },
+        t3b: {
+          speaker: "them",
+          messages: ["Сейчас уберу громкость."],
+          choices: [{ text: "Хорошо.", next: "end", tone: "neutral" }],
         },
         end: {
           speaker: "them",
