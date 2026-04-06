@@ -19,6 +19,16 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
+/** Перемешивание id фишек банка — иначе верные ответы часто идут сверху вниз по слотам OFNR */
+function shuffleBuildBankIds(ids) {
+  const a = ids.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function formatTheoryBody(text) {
   if (!text) return "";
   const escaped = escapeHtml(text);
@@ -525,9 +535,17 @@ export class LessonEngine {
       this._buildState = {
         assignments: {},
         picked: null,
+        bankOrder: null,
       };
     }
     const st = this._buildState;
+    const bankRaw = step.bank || [];
+    if (!st.bankOrder || st.bankOrder.length !== bankRaw.length) {
+      st.bankOrder = shuffleBuildBankIds(bankRaw.map((b) => b.id));
+    }
+    const bankById = new Map(bankRaw.map((b) => [b.id, b]));
+    const bankOrdered = st.bankOrder.map((id) => bankById.get(id)).filter(Boolean);
+
     const slotHtml = slots
       .map((s) => {
         const val = st.assignments[s.key];
@@ -540,7 +558,7 @@ export class LessonEngine {
       })
       .join("");
 
-    const bank = (step.bank || [])
+    const bank = bankOrdered
       .map((b) => {
         const used = Object.values(st.assignments).includes(b.id);
         const drag = !used;
@@ -959,7 +977,8 @@ export class LessonEngine {
       const reset = this.container.querySelector("#build-reset");
       if (reset) {
         reset.addEventListener("click", () => {
-          this._buildState = { assignments: {}, picked: null };
+          const ord = this._buildState?.bankOrder;
+          this._buildState = { assignments: {}, picked: null, bankOrder: ord };
           this._buildSnapKey = null;
           this._renderCurrent();
         });
