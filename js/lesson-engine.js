@@ -114,8 +114,22 @@ export class LessonEngine {
     /** История «мессенджера» для шагов type: dialog */
     this._dialogHistory = [];
     this._dialogHistoryStepIndex = -1;
-    this._dialogAppendedNodeIds = new Set();
     this._dialogPrevHistoryLen = 0;
+    /** Задержка перед первой репликой собеседника после вашего сообщения (мс) */
+    this._dialogPendingAfterUserMs = 0;
+    /** Узел, для которого уже запущено добавление реплик (включая отложенный старт) */
+    this._dialogRevealStartedFor = null;
+    /** Сколько реплик текущего узла уже в истории (для показа вариантов ответа) */
+    this._dialogCurrentNodeMsgsShown = 0;
+    this._dialogMsgsShownForNodeId = null;
+    this._dialogRevealTimers = [];
+  }
+
+  _clearDialogRevealTimers() {
+    if (this._dialogRevealTimers.length) {
+      this._dialogRevealTimers.forEach((tid) => clearTimeout(tid));
+      this._dialogRevealTimers = [];
+    }
   }
 
   _sectionKey(step) {
@@ -213,6 +227,7 @@ export class LessonEngine {
     this._lastSelectId = null;
     this._bodySwapExpanded = false;
     this._lastBodySwapRenderedIdx = -1;
+    this._clearDialogRevealTimers();
     this._renderCurrent();
     if (this.hooks.onStepChange) this.hooks.onStepChange(this.stepIndex);
   }
@@ -253,6 +268,7 @@ export class LessonEngine {
     this.stepIndex += 1;
     this.dialogNodeId = null;
     this.dialogTemp = 50;
+    this._clearDialogRevealTimers();
     this._buildState = null;
     this._theoryRevealChoice = null;
     this._lastSelectId = null;
@@ -489,21 +505,58 @@ export class LessonEngine {
     return [];
   }
 
-  /** Добавить в историю реплики собеседника для текущего узла (один раз на узел) */
-  _appendDialogThemForCurrentNode(step) {
+  _scheduleTheirRest(step, msgs, fromIdx) {
+    if (fromIdx >= msgs.length) return;
+    const t = setTimeout(() => {
+      this._dialogHistory.push({ speaker: "them", text: msgs[fromIdx] });
+      this._dialogCurrentNodeMsgsShown = fromIdx + 1;
+      this._renderCurrent();
+      this._scheduleTheirRest(step, msgs, fromIdx + 1);
+    }, 400);
+    this._dialogRevealTimers.push(t);
+  }
+
+  /**
+   * Добавляет реплики собеседника по одной: первая — сразу (или после паузы после вашего ответа),
+   * следующие — с задержкой. Без рекурсивного _renderCurrent при первой синхронной реплике.
+   */
+  _syncDialogTheirMessages(step) {
     const id = this.dialogNodeId;
-    if (!id || id === "end" || this._dialogAppendedNodeIds.has(id)) return;
+    if (!id || id === "end") return;
     const node = (step.nodes || {})[id];
     if (!node || node.speaker !== "them") return;
     const msgs = this._dialogThemMessages(node);
+    if (this._dialogRevealStartedFor === id) return;
+
+    if (this._dialogMsgsShownForNodeId !== id) {
+      this._dialogMsgsShownForNodeId = id;
+      this._dialogCurrentNodeMsgsShown = 0;
+    }
+
     if (msgs.length === 0) {
-      this._dialogAppendedNodeIds.add(id);
+      this._dialogRevealStartedFor = id;
       return;
     }
-    for (const t of msgs) {
-      this._dialogHistory.push({ speaker: "them", text: t });
+
+    const delayFirst = this._dialogPendingAfterUserMs || 0;
+    this._dialogPendingAfterUserMs = 0;
+
+    this._dialogRevealStartedFor = id;
+
+    if (delayFirst > 0) {
+      const t = setTimeout(() => {
+        this._dialogHistory.push({ speaker: "them", text: msgs[0] });
+        this._dialogCurrentNodeMsgsShown = 1;
+        this._scheduleTheirRest(step, msgs, 1);
+        this._renderCurrent();
+      }, delayFirst);
+      this._dialogRevealTimers.push(t);
+      return;
     }
-    this._dialogAppendedNodeIds.add(id);
+
+    this._dialogHistory.push({ speaker: "them", text: msgs[0] });
+    this._dialogCurrentNodeMsgsShown = 1;
+    this._scheduleTheirRest(step, msgs, 1);
   }
 
   _renderDialog(step) {
@@ -514,13 +567,17 @@ export class LessonEngine {
     }
 
     if (this._dialogHistoryStepIndex !== this.stepIndex) {
+      this._clearDialogRevealTimers();
       this._dialogHistory = [];
-      this._dialogAppendedNodeIds = new Set();
       this._dialogHistoryStepIndex = this.stepIndex;
       this._dialogPrevHistoryLen = 0;
+      this._dialogRevealStartedFor = null;
+      this._dialogMsgsShownForNodeId = null;
+      this._dialogCurrentNodeMsgsShown = 0;
+      this._dialogPendingAfterUserMs = 0;
     }
 
-    this._appendDialogThemForCurrentNode(step);
+    this._syncDialogTheirMessages(step);
 
     const node = (step.nodes || {})[this.dialogNodeId];
     if (!node) {
@@ -531,14 +588,21 @@ export class LessonEngine {
     const newFrom = this._dialogPrevHistoryLen;
     this._dialogPrevHistoryLen = historyLen;
 
+    const themMsgs = this._dialogThemMessages(node);
+    const revealDone =
+      themMsgs.length === 0 || this._dialogCurrentNodeMsgsShown >= themMsgs.length;
+    const hasChoices = Array.isArray(node.choices) && node.choices.length > 0;
+    const showChoices = hasChoices && revealDone;
+
     const bubblesHtml = this._dialogHistory
       .map((m, i) => {
         const side = m.speaker === "you" ? "you" : "them";
         const enter = i >= newFrom ? " dialog-bubble--enter" : "";
+        const sent = m.speaker === "you" && i >= newFrom ? " dialog-bubble--sent" : "";
         const delay = i >= newFrom ? ` style="--dialog-bubble-delay:${(i - newFrom) * 0.07}s"` : "";
         return `
         <div class="dialog-row dialog-row--${side}">
-          <div class="dialog-bubble dialog-bubble--${side}${enter}"${delay}>${escapeHtml(m.text)}</div>
+          <div class="dialog-bubble dialog-bubble--${side}${enter}${sent}"${delay}>${escapeHtml(m.text)}</div>
         </div>`;
       })
       .join("");
@@ -554,20 +618,25 @@ export class LessonEngine {
       .join("");
 
     const continueBtn =
-      !node.choices || node.choices.length === 0
-        ? `<button type="button" class="btn btn--primary" data-action="dialog-finish">Далее</button>`
+      !hasChoices
+        ? `<button type="button" class="btn btn--primary dialog-step-next" data-action="dialog-finish">Далее</button>`
         : "";
 
     const thermo = renderThermometer(this.dialogTemp, { pulse: true });
+    const situationText = (step.situation && String(step.situation).trim()) || step.title || "";
+    const situationBlock = situationText
+      ? `<div class="dialog-situation" role="region" aria-label="Ситуация">${escapeHtml(situationText)}</div>`
+      : "";
 
     return `
       ${thermo}
       <div class="dialog-messenger" aria-label="Диалог в формате переписки">
+        ${situationBlock}
         <div class="dialog-scroll" id="dialog-scroll">
           <div class="dialog-stack">${bubblesHtml}</div>
         </div>
       </div>
-      ${choices ? `<div class="choice-list dialog-choices">${choices}</div>` : ""}
+      ${showChoices ? `<div class="choice-list dialog-choices">${choices}</div>` : ""}
       ${continueBtn}
     `;
   }
@@ -973,6 +1042,7 @@ export class LessonEngine {
           this._applyTone(tone);
           const nextId = btn.getAttribute("data-dialog-next");
           this.dialogNodeId = nextId;
+          this._dialogPendingAfterUserMs = 480;
           this._renderCurrent();
         });
       });

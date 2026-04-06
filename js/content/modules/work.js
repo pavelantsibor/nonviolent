@@ -226,6 +226,8 @@ export default {
       section: "work-request",
       sectionTitle: "Просьба",
       title: "Диалог в чате",
+      situation:
+        "Рабочий чат: вы уточняете сроки по задаче, коллега отвечает. Одна реплика в чате — затем вы выбираете, как ответить.",
       ofnrFocus: "request",
       start: "n1",
       nodes: {

@@ -192,6 +192,8 @@ export default {
       section: "friends-request",
       sectionTitle: "Просьба",
       title: "Наедине после вечеринки",
+      situation:
+        "После вечеринки вы наедине с другом в переписке: вас задела шутка. Собеседник пишет — вы отвечаете вариантами из списка.",
       ofnrFocus: "request",
       start: "fd1",
       nodes: {

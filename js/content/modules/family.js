@@ -225,6 +225,8 @@ export default {
       section: "family-request",
       sectionTitle: "Просьба",
       title: "Разговор",
+      situation:
+        "Семейный чат про вещи в общем коридоре. Сообщения идут по одному — после каждого вы выбираете, как ответить.",
       ofnrFocus: "request",
       start: "m1",
       nodes: {

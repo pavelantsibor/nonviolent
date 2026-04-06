@@ -188,6 +188,8 @@ export default {
       section: "transit-request",
       sectionTitle: "Просьба",
       title: "Обратиться к соседу",
+      situation:
+        "В транспорте сосед кладёт сумку так, что вам неудобно. Вы пишете в личные сообщения — сначала приходит одна реплика, потом вы выбираете ответ.",
       ofnrFocus: "request",
       start: "t1",
       nodes: {

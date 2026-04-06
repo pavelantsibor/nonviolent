@@ -193,6 +193,8 @@ export default {
       section: "restaurant-request",
       sectionTitle: "Просьба",
       title: "У стола",
+      situation:
+        "Вы в кафе, заказ задерживается. Пишете в чат заведения — ответ приходит сообщениями, вы выбираете формулировки.",
       ofnrFocus: "request",
       start: "s1",
       nodes: {
