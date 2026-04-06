@@ -164,7 +164,7 @@ export default {
       sectionTitle: "Потребности",
       title: "Волк или Жираф",
       ofnrFocus: "need",
-      instructions: "Где слышно забота о доверии и границах?",
+      instructions: "В каких фразах слышна забота о доверии и границах?",
       items: [
         { id: "s1", text: "Ты обязан извиниться перед всеми.", answer: "wolf" },
         {
