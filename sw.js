@@ -2,7 +2,7 @@
  * Минимальный Service Worker: кэш оболочки для офлайн-открытия стартовой страницы.
  * Полная офлайн-работа модулей требует предварительного посещения в сети (ES-модули).
  */
-const CACHE_NAME = "nvc-trainer-shell-v1";
+const CACHE_NAME = "nvc-trainer-shell-v2";
 const SHELL = ["./index.html", "./css/styles.css", "./manifest.webmanifest", "./icons/icon.svg"];
 
 self.addEventListener("install", (event) => {

@@ -3,6 +3,14 @@
  */
 
 import { flashTone, vibrateTone } from "./lesson-feedback.js";
+import { fetchReferenceCompact, renderFeelingsNeedsHtml } from "./reference-data.js";
+import {
+  buildSectionMaxMap,
+  getModuleSectionSlices,
+  isLastStepInSection,
+  starsFromScore,
+} from "./content/catalog.js";
+import { withViewTransition } from "./view-transition.js";
 
 function escapeHtml(str) {
   if (str == null) return "";
@@ -21,24 +29,50 @@ function formatTheoryBody(text) {
     .join("");
 }
 
-const TYPE_HINTS = {
-  theory: "📖 Короткий текст — можно вернуться к нему в любой момент.",
-  theory_reveal: "🎯 Сначала интуиция, потом — теория.",
-  select: "🦒 Выберите вариант, который ближе к «языку Жирафа»: факты, чувства, просьбы.",
-  sort: "🐺🦒 Разделите фразы: где давление и ярлыки, а где забота и ясность.",
-  camera: "📷 Вы — объективная камера: только наблюдаемое, без оценок.",
-  dialog: "🌡️ Следите за «температурой» контакта: Волк охлаждает, Жираф согревает.",
-  build: "🧪 Лаборатория смыслов: соберите цельную фразу из четырёх частей.",
-  body_swap: "🪞 Нажмите кнопку — посмотрите на слова глазами другого.",
-  reflection: "✍️ Пара слов для себя — без оценки «хорошо/плохо».",
-};
+function inferOfnrFocus(step) {
+  if (!step) return "mixed";
+  if (step.ofnrFocus) return step.ofnrFocus;
+  switch (step.type) {
+    case "camera":
+    case "sort":
+      return "observation";
+    case "select":
+    case "theory_reveal":
+    case "body_swap":
+      return "feeling";
+    case "reflection":
+      return "need";
+    case "build":
+    case "dialog":
+      return "request";
+    default:
+      return "mixed";
+  }
+}
 
-function renderThermometer(temp) {
+/** Единая строка мягкой шкалы 2 / 1 / 0 */
+function formatPointsLine(pts, kind = "default") {
+  if (kind === "sort") {
+    if (pts === 2) return "Баллы за шаг: 2";
+    if (pts === 1) return "Баллы за шаг: 1 — почти всё верно";
+    return "Баллы за шаг: 0 — можно повторить позже";
+  }
+  if (kind === "camera") {
+    if (pts === 2) return "Баллы за шаг: 2";
+    return "Баллы за шаг: 0 — камера не оценивает, она фиксирует.";
+  }
+  if (pts === 2) return "Баллы за шаг: 2 — чистый Жираф 🦒";
+  if (pts === 1) return "Баллы за шаг: 1 — старающийся Жираф";
+  return "Баллы за шаг: 0 — сработал Волк; это не провал, а сигнал.";
+}
+
+function renderThermometer(temp, opts = {}) {
   const t = Math.max(0, Math.min(100, temp));
   const label =
     t >= 70 ? "Тепло, контакт возможен" : t >= 40 ? "Нейтрально" : "Собеседник может закрыться";
+  const pulseClass = opts.pulse ? " thermo--pulse-once" : "";
   return `
-    <div class="thermo" role="img" aria-label="Температура контакта: ${t} из 100">
+    <div class="thermo${pulseClass}" role="img" aria-label="Температура контакта: ${t} из 100">
       <div class="thermo__label">Контакт</div>
       <div class="thermo__track">
         <div class="thermo__fill" style="width:${t}%"></div>
@@ -60,7 +94,17 @@ export class LessonEngine {
     this._theoryRevealChoice = null;
     this._lastSelectId = null;
     this._bodySwapExpanded = false;
+    this._lastBodySwapRenderedIdx = -1;
+    this.bodySwapContact = 50;
     this.sessionPoints = 0;
+    this._ofnrPoints = { observation: 0, feeling: 0, need: 0, request: 0 };
+    this._sectionMaxMap = buildSectionMaxMap(moduleData);
+    this._sectionEarned = {};
+    this._buildSnapKey = null;
+  }
+
+  _sectionKey(step) {
+    return step?.section || "__whole";
   }
 
   get steps() {
@@ -71,24 +115,89 @@ export class LessonEngine {
     return this.steps.length;
   }
 
-  _addPoints(n) {
-    const v = Math.max(0, Number(n) || 0);
-    this.sessionPoints += v;
+  /** Снимок для сохранения при выходе или смене экрана */
+  getProgressSnapshot() {
+    return {
+      stepIndex: this.stepIndex,
+      sessionPoints: this.sessionPoints,
+      ofnrPoints: { ...this._ofnrPoints },
+      sectionEarned: { ...this._sectionEarned },
+    };
   }
 
-  _renderStepHint(step) {
-    if (step.skipHint) return "";
-    const text = step.hint || TYPE_HINTS[step.type] || "";
-    if (!text) return "";
-    return `<div class="step-hint" role="note">${escapeHtml(text)}</div>`;
+  _addPoints(n, step) {
+    const v = Math.max(0, Number(n) || 0);
+    this.sessionPoints += v;
+    const s = step ?? this.steps[this.stepIndex];
+    if (s) {
+      const f = inferOfnrFocus(s);
+      if (f !== "mixed" && this._ofnrPoints[f] !== undefined) {
+        this._ofnrPoints[f] += v;
+      }
+      const sk = this._sectionKey(s);
+      this._sectionEarned[sk] = (this._sectionEarned[sk] || 0) + v;
+    }
+  }
+
+  _setStepBodyTone(tone) {
+    const el = this.container.querySelector(".step-body");
+    if (!el) return;
+    el.classList.remove("step-body--tone-giraffe", "step-body--tone-wolf", "step-body--tone-neutral");
+    if (tone === "giraffe") el.classList.add("step-body--tone-giraffe");
+    else if (tone === "wolf") el.classList.add("step-body--tone-wolf");
+    else if (tone === "neutral") el.classList.add("step-body--tone-neutral");
+  }
+
+  _buildStarsSummary() {
+    const slices = getModuleSectionSlices(this.module);
+    const sections = slices.map((sl) => {
+      const earned = this._sectionEarned[sl.id] || 0;
+      const max = this._sectionMaxMap[sl.id] || 0;
+      return {
+        id: sl.id,
+        title: sl.title,
+        stars: starsFromScore(earned, max),
+        earned,
+        max,
+      };
+    });
+    let totalE = 0;
+    let totalM = 0;
+    for (const s of sections) {
+      if (s.max > 0) {
+        totalE += s.earned;
+        totalM += s.max;
+      }
+    }
+    return {
+      moduleStars: starsFromScore(totalE, totalM),
+      sections,
+    };
+  }
+
+  _renderStepHint() {
+    /* Подсказки по типу шага перенесены в тур при первом запуске (app.js), чтобы не дублировать текст на экране. */
+    return "";
   }
 
   start(fromStep = 0) {
     this.stepIndex = fromStep;
-    this.sessionPoints = 0;
+    this.sessionPoints = this.hooks.initialSessionPoints ?? 0;
+    const io = this.hooks.initialOfnrPoints;
+    this._ofnrPoints = {
+      observation: 0,
+      feeling: 0,
+      need: 0,
+      request: 0,
+      ...(io && typeof io === "object" ? io : {}),
+    };
+    const ise = this.hooks.initialSectionEarned;
+    this._sectionEarned =
+      ise && typeof ise === "object" ? { ...ise } : {};
     this._theoryRevealChoice = null;
     this._lastSelectId = null;
     this._bodySwapExpanded = false;
+    this._lastBodySwapRenderedIdx = -1;
     this._renderCurrent();
     if (this.hooks.onStepChange) this.hooks.onStepChange(this.stepIndex);
   }
@@ -96,10 +205,36 @@ export class LessonEngine {
   _advance() {
     if (this.stepIndex >= this.totalSteps - 1) {
       if (this.hooks.onComplete) {
-        this.hooks.onComplete(this.module, { points: this.sessionPoints });
+        this.hooks.onComplete(this.module, {
+          points: this.sessionPoints,
+          stars: this._buildStarsSummary(),
+        });
       }
       return;
     }
+
+    const i = this.stepIndex;
+    if (isLastStepInSection(this.module, i) && typeof this.hooks.onSectionComplete === "function") {
+      const nextStep = i + 1;
+      const steps = this.module.steps || [];
+      const cur = steps[i];
+      const sid = cur ? this._sectionKey(cur) : "__whole";
+      const sectionEarned = this._sectionEarned[sid] || 0;
+      const sectionMax = this._sectionMaxMap[sid] || 0;
+      const sectionStars = starsFromScore(sectionEarned, sectionMax);
+      this.hooks.onSectionComplete(this.module, {
+        nextStepIndex: nextStep,
+        sessionPoints: this.sessionPoints,
+        ofnrPoints: { ...this._ofnrPoints },
+        sectionId: sid,
+        sectionStars,
+        sectionEarned,
+        sectionMax,
+        sectionEarnedMap: { ...this._sectionEarned },
+      });
+      return;
+    }
+
     this.stepIndex += 1;
     this.dialogNodeId = null;
     this.dialogTemp = 50;
@@ -107,27 +242,48 @@ export class LessonEngine {
     this._theoryRevealChoice = null;
     this._lastSelectId = null;
     this._bodySwapExpanded = false;
+    this._lastBodySwapRenderedIdx = -1;
     if (this.hooks.onStepChange) this.hooks.onStepChange(this.stepIndex);
     this._renderCurrent();
+  }
+
+  _renderSectionLabel(step) {
+    const prev = this.stepIndex > 0 ? this.steps[this.stepIndex - 1] : null;
+    if (!step.section || (prev && prev.section === step.section)) return "";
+    if (!step.sectionTitle) return "";
+    return `<p class="lesson-section" role="status">${escapeHtml(step.sectionTitle)}</p>`;
   }
 
   _renderCurrent() {
     const step = this.steps[this.stepIndex];
     if (!step) {
+      this.container.className = "lesson-root";
       this.container.innerHTML = "<p>Нет шагов.</p>";
       return;
     }
+    withViewTransition(() => this._paintStep(step));
+  }
+
+  _paintStep(step) {
+    const sectionLabel = this._renderSectionLabel(step);
+    const progPct = this.totalSteps ? Math.round(((this.stepIndex + 1) / this.totalSteps) * 100) : 100;
     const header = `
       <div class="lesson-header">
-        <div>
-          <span class="tag">Шаг ${this.stepIndex + 1} из ${this.totalSteps}</span>
-          <h2>${escapeHtml(step.title || "")}</h2>
+        <div class="lesson-header__inner">
+          <div class="lesson-header__titles">
+            <span class="tag">Шаг ${this.stepIndex + 1} из ${this.totalSteps}</span>
+            ${sectionLabel}
+            <h2>${escapeHtml(step.title || "")}</h2>
+          </div>
+          <button type="button" class="lesson-header__close" aria-label="Закрыть урок" data-action="exit">×</button>
         </div>
-        <button type="button" class="lesson-header__close" aria-label="Закрыть урок" data-action="exit">×</button>
+        <div class="lesson-header__track" role="progressbar" aria-valuenow="${this.stepIndex + 1}" aria-valuemin="1" aria-valuemax="${this.totalSteps}" aria-label="Прогресс по шагам модуля">
+          <div class="lesson-header__fill" style="width:${progPct}%"></div>
+        </div>
       </div>
     `;
 
-    const hint = this._renderStepHint(step);
+    const hint = this._renderStepHint();
 
     let body = "";
     switch (step.type) {
@@ -162,10 +318,31 @@ export class LessonEngine {
         body = `<p class="muted">Неизвестный тип шага: ${escapeHtml(step.type)}</p>`;
     }
 
+    this.container.className = "lesson-root";
     this.container.innerHTML =
-      header + hint + `<div class="step-body" data-step-type="${escapeHtml(step.type)}">${body}</div>`;
+      header + hint + `<div class="step-body lesson-step-enter" data-step-type="${escapeHtml(step.type)}">${body}</div>`;
     this._bindGlobalActions();
     this._bindStepHandlers(step);
+    const stepBody = this.container.querySelector(".step-body");
+    if (stepBody) {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        stepBody.classList.remove("lesson-step-enter");
+      } else {
+        const clearEnter = () => stepBody.classList.remove("lesson-step-enter");
+        stepBody.addEventListener("animationend", clearEnter, { once: true });
+      }
+    }
+    if (step.type === "build" && this._buildSnapKey) {
+      const snapKey = this._buildSnapKey;
+      this._buildSnapKey = null;
+      requestAnimationFrame(() => {
+        const el = this.container.querySelector(`.build-slot[data-slot-key="${snapKey}"]`);
+        if (el) {
+          el.classList.add("build-slot--snap");
+          setTimeout(() => el.classList.remove("build-slot--snap"), 450);
+        }
+      });
+    }
   }
 
   _bindGlobalActions() {
@@ -192,8 +369,8 @@ export class LessonEngine {
     if (!this._theoryRevealChoice) {
       const opts = (step.options || [])
         .map(
-          (o) => `
-        <button type="button" class="choice" data-reveal-id="${escapeHtml(o.id)}">${escapeHtml(o.text)}</button>
+          (o, i) => `
+        <button type="button" class="choice choice--appear" style="--choice-delay:${i * 0.055}s" data-reveal-id="${escapeHtml(o.id)}">${escapeHtml(o.text)}</button>
       `
         )
         .join("");
@@ -217,7 +394,7 @@ export class LessonEngine {
       </div>
       <div class="feedback ${fbCls}">${escapeHtml(opt?.feedback || "")}</div>
       ${step.afterReveal ? `<p class="muted">${escapeHtml(step.afterReveal)}</p>` : ""}
-      <div class="card">${formatTheoryBody(step.body || "")}</div>
+      <div class="card theory-reveal-panel">${formatTheoryBody(step.body || "")}</div>
       <button type="button" class="btn btn--primary" data-action="next">Далее</button>
     `;
   }
@@ -226,8 +403,8 @@ export class LessonEngine {
     const thermo = renderThermometer(this.dialogTemp);
     const opts = (step.options || [])
       .map(
-        (o) => `
-      <button type="button" class="choice" data-select-id="${escapeHtml(o.id)}" data-quality="${escapeHtml(o.quality || "")}">
+        (o, i) => `
+      <button type="button" class="choice choice--appear" style="--choice-delay:${i * 0.055}s" data-select-id="${escapeHtml(o.id)}" data-quality="${escapeHtml(o.quality || "")}">
         ${escapeHtml(o.text)}
       </button>
     `
@@ -249,10 +426,10 @@ export class LessonEngine {
       .map(
         (it) => `
       <div class="sort-item" data-sort-id="${escapeHtml(it.id)}">
-        <div class="sort-item__text">${escapeHtml(it.text)}</div>
+        <div class="sort-item__text" draggable="true" data-drag-sort-id="${escapeHtml(it.id)}">${escapeHtml(it.text)}</div>
         <div class="sort-btns">
-          <button type="button" class="btn btn--wolf" data-ans="wolf">Волк</button>
-          <button type="button" class="btn btn--giraffe" data-ans="giraffe">Жираф</button>
+          <button type="button" class="btn btn--wolf sort-drop-target" data-ans="wolf">Волк</button>
+          <button type="button" class="btn btn--giraffe sort-drop-target" data-ans="giraffe">Жираф</button>
         </div>
       </div>
     `
@@ -271,8 +448,8 @@ export class LessonEngine {
   _renderCamera(step) {
     const opts = (step.options || [])
       .map(
-        (o) => `
-      <button type="button" class="choice" data-camera-id="${escapeHtml(o.id)}" data-correct="${o.correct ? "1" : "0"}">${escapeHtml(o.text)}</button>
+        (o, i) => `
+      <button type="button" class="choice choice--appear" style="--choice-delay:${i * 0.055}s" data-camera-id="${escapeHtml(o.id)}" data-correct="${o.correct ? "1" : "0"}">${escapeHtml(o.text)}</button>
     `
       )
       .join("");
@@ -298,8 +475,8 @@ export class LessonEngine {
     const bubbleClass = node.speaker === "you" ? "dialog-bubble--you" : "dialog-bubble--them";
     const choices = (node.choices || [])
       .map(
-        (c) => `
-      <button type="button" class="choice" data-dialog-next="${escapeHtml(c.next)}" data-tone="${escapeHtml(c.tone || "neutral")}">
+        (c, i) => `
+      <button type="button" class="choice choice--appear" style="--choice-delay:${i * 0.05}s" data-dialog-next="${escapeHtml(c.next)}" data-tone="${escapeHtml(c.tone || "neutral")}">
         ${escapeHtml(c.text)}
       </button>
     `
@@ -316,12 +493,12 @@ export class LessonEngine {
         ? `<button type="button" class="btn btn--primary" data-action="dialog-finish">Далее</button>`
         : "";
 
-    const thermo = renderThermometer(this.dialogTemp);
+    const thermo = renderThermometer(this.dialogTemp, { pulse: true });
 
     return `
       ${thermo}
       <div class="dialog-stack">
-        <div class="dialog-bubble ${bubbleClass}">${text}</div>
+        <div class="dialog-bubble dialog-bubble--enter ${bubbleClass}">${text}</div>
       </div>
       ${choices ? `<div class="choice-list">${choices}</div>` : ""}
       ${continueBtn}
@@ -354,9 +531,9 @@ export class LessonEngine {
     const slotHtml = slots
       .map((s) => {
         const val = st.assignments[s.key];
-        const label = val ? escapeHtml(this._findBankText(step, val)) : "— тап по фразе, затем по слоту —";
+        const label = val ? escapeHtml(this._findBankText(step, val)) : "— выберите фразу —";
         return `
-        <div class="build-slot ${val ? "is-filled" : ""}" data-slot-key="${escapeHtml(s.key)}" role="button" tabindex="0">
+        <div class="build-slot build-slot--droppable ${val ? "is-filled" : ""}" data-slot-key="${escapeHtml(s.key)}" role="button" tabindex="0">
           <div class="build-slot-label">${escapeHtml(s.label)}</div>
           <div>${val ? label : '<span class="muted">пусто</span>'}</div>
         </div>`;
@@ -366,8 +543,9 @@ export class LessonEngine {
     const bank = (step.bank || [])
       .map((b) => {
         const used = Object.values(st.assignments).includes(b.id);
+        const drag = !used;
         return `
-        <button type="button" class="chip ${used ? "is-used" : ""} ${st.picked === b.id ? "is-picked" : ""}" data-chip-id="${escapeHtml(b.id)}" ${used ? "disabled" : ""}>
+        <button type="button" class="chip ${used ? "is-used" : ""} ${st.picked === b.id ? "is-picked" : ""}" data-chip-id="${escapeHtml(b.id)}" draggable="${drag ? "true" : "false"}" ${used ? "disabled" : ""}>
           ${escapeHtml(b.text)}
         </button>`;
       })
@@ -382,12 +560,22 @@ export class LessonEngine {
       </div>
       <p class="muted">${escapeHtml(step.instructions || "")}</p>
       <div class="build-slots">${slotHtml}</div>
-      <p class="muted" style="font-size:0.85rem">Совет: сначала нажмите фразу, затем подходящий слот.</p>
       <div class="chip-bank">${bank}</div>
       <div class="feedback" id="build-feedback" hidden></div>
       <div class="btn-row">
         <button type="button" class="btn btn--secondary" id="build-reset">Сбросить</button>
         <button type="button" class="btn btn--primary" id="build-check">Проверить</button>
+      </div>
+      <button type="button" class="btn btn--ghost" id="build-open-ref" style="margin-top:10px">Справочник чувств и потребностей</button>
+      <div class="build-ref-modal" id="build-ref-modal" hidden>
+        <div class="build-ref-modal__backdrop" data-build-ref-close tabindex="-1"></div>
+        <div class="build-ref-modal__panel card" role="dialog" aria-modal="true" aria-labelledby="build-ref-title">
+          <div class="build-ref-modal__head">
+            <h3 id="build-ref-title" style="margin:0;font-size:1rem">Шпаргалка</h3>
+            <button type="button" class="lesson-header__close" data-build-ref-close aria-label="Закрыть">×</button>
+          </div>
+          <div class="build-ref-modal__body" id="build-ref-body"></div>
+        </div>
       </div>
       <button type="button" class="btn btn--primary" id="build-next" style="margin-top:10px;display:none">Далее</button>
     `;
@@ -409,22 +597,38 @@ export class LessonEngine {
   }
 
   _renderBodySwap(step) {
+    if (this._lastBodySwapRenderedIdx !== this.stepIndex) {
+      this._lastBodySwapRenderedIdx = this.stepIndex;
+      this.bodySwapContact = typeof step.contactStart === "number" ? step.contactStart : 50;
+    }
     const name = step.characterName || "собеседника";
     const phrases = (step.yourPhrases || []).map((p) => `<li>${escapeHtml(p)}</li>`).join("");
+    const showMeter = step.showContactMeter !== false;
+    const thermoDeep = showMeter ? renderThermometer(this.bodySwapContact) : "";
     const highlights = (step.highlights || [])
-      .map(
-        (h) => `
-      <div class="body-swap-mark">
+      .map((h) => {
+        const thought = h.innerThought
+          ? `<div class="body-swap-thought" role="text">${escapeHtml(h.innerThought)}</div>`
+          : "";
+        const delta =
+          typeof h.contactDelta === "number"
+            ? ` data-contact-delta="${h.contactDelta}"`
+            : "";
+        const interactive = typeof h.contactDelta === "number" ? " body-swap-mark--interactive" : "";
+        return `
+      <div class="body-swap-mark${interactive}"${delta}>
         <span class="body-swap-fragment">«${escapeHtml(h.fragment)}»</span>
         <span class="body-swap-note">${escapeHtml(h.note)}</span>
+        ${thought}
       </div>
-    `
-      )
+    `;
+      })
       .join("");
 
     const annotated = `
       <div class="body-swap body-swap--annotated" id="body-swap-deep" ${this._bodySwapExpanded ? "" : "hidden"}>
         <h3 style="margin-top:0">Глазами ${escapeHtml(name)}</h3>
+        ${thermoDeep ? `<p class="muted" style="margin:0 0 6px;font-size:0.85rem">Термометр контакта: коснитесь строки с фрагментом — как слова бьют по «температуре».</p>${thermoDeep}` : ""}
         ${highlights || `<p class="muted">Замечания к формулировкам.</p>`}
         <p><strong>${escapeHtml(name)}:</strong> ${escapeHtml(step.theirPerspective || "")}</p>
       </div>
@@ -458,19 +662,20 @@ export class LessonEngine {
   }
 
   _applyTone(tone) {
+    const st = this.steps[this.stepIndex];
     if (tone === "wolf") {
       this.dialogTemp = Math.max(0, this.dialogTemp - 20);
       flashTone("wolf");
       vibrateTone("wolf");
-      this._addPoints(0);
+      this._addPoints(0, st);
     } else if (tone === "giraffe") {
       this.dialogTemp = Math.min(100, this.dialogTemp + 18);
       flashTone("giraffe");
       vibrateTone("giraffe");
-      this._addPoints(2);
+      this._addPoints(2, st);
     } else {
       this.dialogTemp = Math.min(100, this.dialogTemp + 5);
-      this._addPoints(1);
+      this._addPoints(1, st);
     }
   }
 
@@ -493,9 +698,14 @@ export class LessonEngine {
             this._theoryRevealChoice = btn.getAttribute("data-reveal-id");
             const opt = (step.options || []).find((o) => o.id === this._theoryRevealChoice);
             if (opt) {
-              this._addPoints(this._qualityPoints(opt.quality));
+              this._addPoints(this._qualityPoints(opt.quality), step);
             }
             this._renderCurrent();
+            requestAnimationFrame(() => {
+              const tone =
+                opt?.quality === "best" ? "giraffe" : opt?.quality === "poor" ? "wolf" : "neutral";
+              this._setStepBodyTone(tone);
+            });
           });
         });
       } else {
@@ -536,20 +746,17 @@ export class LessonEngine {
           if (scoreEl) {
             const pts = this._qualityPoints(q);
             scoreEl.hidden = false;
-            scoreEl.textContent =
-              pts === 2
-                ? "Баллы за шаг: 2 — чистый Жираф 🦒"
-                : pts === 1
-                  ? "Баллы за шаг: 1 — старающийся Жираф"
-                  : "Баллы за шаг: 0 — сработал Волк; это не провал, а сигнал.";
+            scoreEl.textContent = formatPointsLine(pts);
           }
+          const tone = q === "best" ? "giraffe" : q === "poor" ? "wolf" : "neutral";
+          this._setStepBodyTone(tone);
           if (nextBtn) nextBtn.disabled = false;
         });
       });
       if (nextBtn) {
         nextBtn.addEventListener("click", () => {
           const chosen = (step.options || []).find((o) => o.id === this._lastSelectId);
-          if (chosen) this._addPoints(this._qualityPoints(chosen.quality));
+          if (chosen) this._addPoints(this._qualityPoints(chosen.quality), step);
           this._advance();
         });
       }
@@ -560,15 +767,45 @@ export class LessonEngine {
       const feedback = this.container.querySelector("#sort-feedback");
       const scoreEl = this.container.querySelector("#sort-score");
       const checkBtn = this.container.querySelector("#sort-check");
+      const sortDataType = "text/plain";
       this.container.querySelectorAll(".sort-item").forEach((row) => {
         const id = row.getAttribute("data-sort-id");
+        const applyRow = (ans) => {
+          row.querySelectorAll("[data-ans]").forEach((x) => x.classList.remove("is-on"));
+          const btn = row.querySelector(`[data-ans="${ans}"]`);
+          if (btn) btn.classList.add("is-on");
+          answers[id] = ans;
+          const total = (step.items || []).length;
+          if (checkBtn) checkBtn.disabled = Object.keys(answers).length < total;
+        };
         row.querySelectorAll("[data-ans]").forEach((b) => {
-          b.addEventListener("click", () => {
-            row.querySelectorAll("[data-ans]").forEach((x) => x.classList.remove("is-on"));
-            b.classList.add("is-on");
-            answers[id] = b.getAttribute("data-ans");
-            const total = (step.items || []).length;
-            if (checkBtn) checkBtn.disabled = Object.keys(answers).length < total;
+          b.addEventListener("click", () => applyRow(b.getAttribute("data-ans")));
+        });
+        const dragEl = row.querySelector(".sort-item__text[draggable]");
+        if (dragEl) {
+          dragEl.addEventListener("dragstart", (e) => {
+            e.dataTransfer.setData(sortDataType, id);
+            e.dataTransfer.effectAllowed = "move";
+            row.classList.add("sort-item--dragging");
+          });
+          dragEl.addEventListener("dragend", () => row.classList.remove("sort-item--dragging"));
+        }
+        row.querySelectorAll(".sort-drop-target[data-ans]").forEach((b) => {
+          b.addEventListener("dragenter", (e) => {
+            e.preventDefault();
+            b.classList.add("sort-drop-target--over");
+          });
+          b.addEventListener("dragleave", () => b.classList.remove("sort-drop-target--over"));
+          b.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+          });
+          b.addEventListener("drop", (e) => {
+            e.preventDefault();
+            b.classList.remove("sort-drop-target--over");
+            const droppedId = e.dataTransfer.getData(sortDataType);
+            if (droppedId !== id) return;
+            applyRow(b.getAttribute("data-ans"));
           });
         });
       });
@@ -580,12 +817,13 @@ export class LessonEngine {
           });
           const all = (step.items || []).length;
           const pts = ok === all ? 2 : ok > 0 ? 1 : 0;
-          this._addPoints(pts);
+          this._addPoints(pts, step);
           if (scoreEl) {
             scoreEl.hidden = false;
-            scoreEl.textContent =
-              pts === 2 ? "Баллы за шаг: 2" : pts === 1 ? "Баллы за шаг: 1 — почти всё верно" : "Баллы за шаг: 0 — можно повторить позже";
+            scoreEl.textContent = formatPointsLine(pts, "sort");
           }
+          const tone = pts === 2 ? "giraffe" : pts === 1 ? "neutral" : "wolf";
+          this._setStepBodyTone(tone);
           if (feedback) {
             feedback.hidden = false;
             if (ok === all) {
@@ -621,14 +859,15 @@ export class LessonEngine {
           const opt = (step.options || []).find((o) => o.id === id);
           const correct = btn.getAttribute("data-correct") === "1";
           if (correct) {
-            this._addPoints(2);
+            this._addPoints(2, step);
             flashTone("giraffe");
             vibrateTone("giraffe");
           } else {
-            this._addPoints(0);
+            this._addPoints(0, step);
             flashTone("wolf");
             vibrateTone("wolf");
           }
+          this._setStepBodyTone(correct ? "giraffe" : "wolf");
           if (fb && opt) {
             fb.hidden = false;
             fb.className = opt.correct ? "feedback feedback--ok" : "feedback feedback--partial";
@@ -636,7 +875,7 @@ export class LessonEngine {
           }
           if (scoreEl) {
             scoreEl.hidden = false;
-            scoreEl.textContent = correct ? "Баллы за шаг: 2" : "Баллы за шаг: 0 — камера не оценивает, она фиксирует.";
+            scoreEl.textContent = formatPointsLine(correct ? 2 : 0, "camera");
           }
           if (nextBtn) nextBtn.disabled = false;
         });
@@ -661,8 +900,29 @@ export class LessonEngine {
     if (step.type === "build") {
       const stepRef = step;
       const st = this._buildState;
+      const chipDataType = "text/plain";
       const pickChip = (id) => {
         st.picked = st.picked === id ? null : id;
+        this._renderCurrent();
+      };
+      const assignSlotFromPick = (key) => {
+        if (!st.picked) return;
+        const bankItem = (stepRef.bank || []).find((b) => b.id === st.picked);
+        if (!bankItem || bankItem.slot !== key) {
+          const fb = this.container.querySelector("#build-feedback");
+          if (fb) {
+            fb.hidden = false;
+            fb.className = "feedback feedback--hint";
+            fb.textContent = "Эта фраза относится к другому слоту.";
+          }
+          return;
+        }
+        Object.keys(st.assignments).forEach((k) => {
+          if (st.assignments[k] === st.picked) delete st.assignments[k];
+        });
+        st.assignments[key] = st.picked;
+        st.picked = null;
+        this._buildSnapKey = key;
         this._renderCurrent();
       };
       this.container.querySelectorAll(".chip[data-chip-id]").forEach((chip) => {
@@ -670,38 +930,59 @@ export class LessonEngine {
           if (chip.disabled) return;
           pickChip(chip.getAttribute("data-chip-id"));
         });
+        chip.addEventListener("dragstart", (e) => {
+          if (chip.disabled) return;
+          e.dataTransfer.setData(chipDataType, chip.getAttribute("data-chip-id"));
+          e.dataTransfer.effectAllowed = "move";
+          chip.classList.add("chip--dragging");
+        });
+        chip.addEventListener("dragend", () => chip.classList.remove("chip--dragging"));
       });
       this.container.querySelectorAll(".build-slot[data-slot-key]").forEach((slotEl) => {
-        slotEl.addEventListener("click", () => {
-          const key = slotEl.getAttribute("data-slot-key");
-          if (!st.picked) return;
-          const bankItem = (stepRef.bank || []).find((b) => b.id === st.picked);
-          if (!bankItem || bankItem.slot !== key) {
-            const fb = this.container.querySelector("#build-feedback");
-            if (fb) {
-              fb.hidden = false;
-              fb.className = "feedback feedback--hint";
-              fb.textContent = "Эта фраза относится к другому слоту.";
-            }
-            return;
-          }
-          Object.keys(st.assignments).forEach((k) => {
-            if (st.assignments[k] === st.picked) delete st.assignments[k];
-          });
-          st.assignments[key] = st.picked;
-          st.picked = null;
-          this._renderCurrent();
+        const key = slotEl.getAttribute("data-slot-key");
+        slotEl.addEventListener("click", () => assignSlotFromPick(key));
+        slotEl.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          slotEl.classList.add("build-slot--drag-over");
+        });
+        slotEl.addEventListener("dragleave", () => slotEl.classList.remove("build-slot--drag-over"));
+        slotEl.addEventListener("drop", (e) => {
+          e.preventDefault();
+          slotEl.classList.remove("build-slot--drag-over");
+          const chipId = e.dataTransfer.getData(chipDataType);
+          if (!chipId) return;
+          st.picked = chipId;
+          assignSlotFromPick(key);
         });
       });
       const reset = this.container.querySelector("#build-reset");
       if (reset) {
         reset.addEventListener("click", () => {
           this._buildState = { assignments: {}, picked: null };
+          this._buildSnapKey = null;
           this._renderCurrent();
         });
       }
       const check = this.container.querySelector("#build-check");
       const nextB = this.container.querySelector("#build-next");
+      const refBtn = this.container.querySelector("#build-open-ref");
+      const modal = this.container.querySelector("#build-ref-modal");
+      const closeRefModal = () => {
+        if (modal) modal.hidden = true;
+      };
+      refBtn?.addEventListener("click", async () => {
+        const body = this.container.querySelector("#build-ref-body");
+        if (body && !body.dataset.loaded) {
+          const data = await fetchReferenceCompact();
+          body.innerHTML = renderFeelingsNeedsHtml(data);
+          body.dataset.loaded = "1";
+        }
+        if (modal) modal.hidden = false;
+      });
+      this.container.querySelectorAll("[data-build-ref-close]").forEach((el) => {
+        el.addEventListener("click", closeRefModal);
+      });
       if (check) {
         check.addEventListener("click", () => {
           const corr = step.correct || {};
@@ -718,13 +999,16 @@ export class LessonEngine {
             if (good) {
               fb.className = "feedback feedback--ok";
               fb.textContent = "Собрано верно: факт, чувство, потребность и просьба согласованы.";
-              this._addPoints(2);
+              this._addPoints(2, step);
+              this._setStepBodyTone("giraffe");
             } else {
               fb.className = "feedback feedback--partial";
               fb.textContent =
                 coherenceHint ||
                 "Почти. Проверьте: наблюдение без ярлыков, чувство — ваше, потребность — ценность, просьба — с выбором.";
-              this._addPoints(coherenceHint ? 1 : 0);
+              const pts = coherenceHint ? 1 : 0;
+              this._addPoints(pts, step);
+              this._setStepBodyTone(pts ? "neutral" : "wolf");
             }
           }
           check.style.display = "none";
@@ -739,13 +1023,35 @@ export class LessonEngine {
     if (step.type === "body_swap") {
       const toggle = this.container.querySelector("#body-swap-toggle");
       const deep = this.container.querySelector("#body-swap-deep");
+      const updateThermo = () => {
+        const fill = this.container.querySelector("#body-swap-deep .thermo__fill");
+        const meta = this.container.querySelector("#body-swap-deep .thermo__meta");
+        if (fill) fill.style.width = `${Math.max(0, Math.min(100, this.bodySwapContact))}%`;
+        if (meta) {
+          const t = Math.max(0, Math.min(100, this.bodySwapContact));
+          const label =
+            t >= 70 ? "Тепло, контакт возможен" : t >= 40 ? "Нейтрально" : "Собеседник может закрыться";
+          meta.textContent = `${label} · ${t}%`;
+        }
+      };
       if (toggle && deep) {
         toggle.addEventListener("click", () => {
           this._bodySwapExpanded = true;
           deep.hidden = false;
           toggle.style.display = "none";
+          updateThermo();
         });
       }
+      this.container.querySelectorAll(".body-swap-mark--interactive[data-contact-delta]").forEach((row) => {
+        row.addEventListener("click", () => {
+          const d = parseInt(row.getAttribute("data-contact-delta"), 10);
+          if (!Number.isNaN(d)) {
+            this.bodySwapContact = Math.max(0, Math.min(100, this.bodySwapContact + d));
+            updateThermo();
+            row.classList.add("is-touched");
+          }
+        });
+      });
       const btn = this.container.querySelector('[data-action="next"]');
       if (btn) btn.addEventListener("click", () => this._advance());
     }
