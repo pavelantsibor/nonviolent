@@ -193,15 +193,15 @@ export default {
       nodes: {
         t1: {
           speaker: "them",
-          messages: ["А?", "Что случилось?"],
+          messages: ["👂 А?", "❓ Что случилось?"],
           choices: [
             {
-              text: "Да ты что, оглох? Выруби немедленно!",
+              text: "😡 Да ты что, оглох? Выруби немедленно!",
               next: "t2a",
               tone: "wolf",
             },
             {
-              text: "Извините, слышу музыку из наушников очень громко. Можете чуть уменьшить громкость?",
+              text: "🙏 Извините, слышу музыку из наушников очень громко. Можете чуть уменьшить громкость?",
               next: "t2b",
               tone: "giraffe",
             },
@@ -209,18 +209,18 @@ export default {
         },
         t2a: {
           speaker: "them",
-          messages: ["Сам иди в другой вагон."],
-          choices: [{ text: "Остановиться. При необходимости — перейти в другой вагон или обратиться к сотруднику транспорта.", next: "end", tone: "neutral" }],
+          messages: ["🚶 Сам иди в другой вагон."],
+          choices: [{ text: "🛑 Остановиться. При необходимости — перейти в другой вагон или обратиться к сотруднику транспорта.", next: "end", tone: "neutral" }],
         },
         t2b: {
           speaker: "them",
-          messages: ["А, понял(а).", "Извини, не заметил(а)."],
-          choices: [{ text: "Спасибо.", next: "t3b", tone: "giraffe" }],
+          messages: ["😌 А, понял(а).", "🙏 Извини, не заметил(а)."],
+          choices: [{ text: "🙏 Спасибо.", next: "t3b", tone: "giraffe" }],
         },
         t3b: {
           speaker: "them",
-          messages: ["Сейчас уберу громкость."],
-          choices: [{ text: "Хорошо.", next: "end", tone: "neutral" }],
+          messages: ["🔉 Сейчас уберу громкость."],
+          choices: [{ text: "👍 Хорошо.", next: "end", tone: "neutral" }],
         },
         end: {
           speaker: "them",
