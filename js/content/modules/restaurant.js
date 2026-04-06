@@ -198,15 +198,26 @@ export default {
       nodes: {
         s1: {
           speaker: "them",
-          messages: ["👋 Добрый вечер!", "🍽️ Как вам всё?"],
+          messages: ["👋 Добрый вечер!", "🍽️ Как всё?"],
           choices: [
             {
-              text: "😠 Ужасно, как всегда у вас.",
+              text: "😠 Ужасно, как всегда.",
               next: "s2a",
               tone: "wolf",
             },
             {
-              text: "🙏 Спасибо, что спросили. Мы заказывали без острого, а блюдо острое — можно заменить или убрать соус?",
+              text: "🙏 Заказывали без острого — а блюдо острое.",
+              next: "s1g",
+              tone: "giraffe",
+            },
+          ],
+        },
+        s1g: {
+          speaker: "them",
+          messages: ["❓ Уточнить?", "🔄 Заменить блюдо?"],
+          choices: [
+            {
+              text: "🍽️ Можно заменить или убрать соус?",
               next: "s2b",
               tone: "giraffe",
             },
@@ -214,18 +225,23 @@ export default {
         },
         s2a: {
           speaker: "them",
-          messages: ["🙏 Простите…", "❓ Уточните, что не так?"],
-          choices: [{ text: "↩️ Вернуться к факту о заказе и просьбе.", next: "end", tone: "neutral" }],
+          messages: ["🙏 Простите.", "❓ Что не так?"],
+          choices: [{ text: "↩️ К факту о заказе и просьбе.", next: "end", tone: "neutral" }],
         },
         s2b: {
           speaker: "them",
-          messages: ["👨‍🍳 Конечно, передам на кухню и уточню.", "⏱️ Пять минут вас устроят?"],
-          choices: [{ text: "🙏 Да, спасибо за помощь.", next: "s3b", tone: "giraffe" }],
+          messages: ["👨‍🍳 Передам на кухню.", "⏱️ Пять минут ок?"],
+          choices: [{ text: "🙏 Да, спасибо.", next: "s3b", tone: "giraffe" }],
         },
         s3b: {
           speaker: "them",
-          messages: ["🏃 Сейчас уточню на кухне.", "🍽️ Как будет готово — поднесём."],
-          choices: [{ text: "👌 Хорошо, жду.", next: "end", tone: "neutral" }],
+          messages: ["🏃 Уточняю.", "🍽️ Принесём, как будет готово."],
+          choices: [{ text: "👌 Жду.", next: "s4b", tone: "neutral" }],
+        },
+        s4b: {
+          speaker: "them",
+          messages: ["🙂 Если что — зовите."],
+          choices: [{ text: "👍 Хорошо.", next: "end", tone: "neutral" }],
         },
         end: {
           speaker: "them",

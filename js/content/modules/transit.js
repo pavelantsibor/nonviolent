@@ -193,15 +193,26 @@ export default {
       nodes: {
         t1: {
           speaker: "them",
-          messages: ["👂 А?", "❓ Что случилось?"],
+          messages: ["👂 А?", "❓ Слушаю."],
           choices: [
             {
-              text: "😡 Да ты что, оглох? Выруби немедленно!",
+              text: "😡 Да ты оглох? Выруби!",
               next: "t2a",
               tone: "wolf",
             },
             {
-              text: "🙏 Извините, слышу музыку из наушников очень громко. Можете чуть уменьшить громкость?",
+              text: "🙏 Извините, музыка из наушников очень громко.",
+              next: "t1g",
+              tone: "giraffe",
+            },
+          ],
+        },
+        t1g: {
+          speaker: "them",
+          messages: ["😬 Ой.", "🔉 Правда громко?"],
+          choices: [
+            {
+              text: "👍 Можно чуть тише?",
               next: "t2b",
               tone: "giraffe",
             },
@@ -209,18 +220,18 @@ export default {
         },
         t2a: {
           speaker: "them",
-          messages: ["🚶 Сам иди в другой вагон."],
-          choices: [{ text: "🛑 Остановиться. При необходимости — перейти в другой вагон или обратиться к сотруднику транспорта.", next: "end", tone: "neutral" }],
+          messages: ["😠 Сам уйди.", "🚶 Другой вагон."],
+          choices: [{ text: "🛑 Ок. Или к сотруднику метро.", next: "end", tone: "neutral" }],
         },
         t2b: {
           speaker: "them",
-          messages: ["😌 А, понял(а).", "🙏 Извини, не заметил(а)."],
+          messages: ["😌 Понял(а).", "🙏 Извини.", "🔉 Сейчас уберу."],
           choices: [{ text: "🙏 Спасибо.", next: "t3b", tone: "giraffe" }],
         },
         t3b: {
           speaker: "them",
-          messages: ["🔉 Сейчас уберу громкость."],
-          choices: [{ text: "👍 Хорошо.", next: "end", tone: "neutral" }],
+          messages: ["👌 Готово.", "🙂 Так лучше?"],
+          choices: [{ text: "👍 Да.", next: "end", tone: "neutral" }],
         },
         end: {
           speaker: "them",

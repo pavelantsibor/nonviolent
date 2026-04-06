@@ -197,15 +197,26 @@ export default {
       nodes: {
         fd1: {
           speaker: "them",
-          messages: ["😅 Да ладно тебе, это же шутка!", "😐 Ты слишком серьёзный(ая)."],
+          messages: ["😅 Это же шутка.", "😐 Ты слишком серьёзный."],
           choices: [
             {
-              text: "😡 Ты всегда всех унижаешь, ты токсичный человек.",
+              text: "😡 Ты всех унижаешь.",
               next: "fd2a",
               tone: "wolf",
             },
             {
-              text: "🙏 Мне было неловко при всех. Мне важно, чтобы про мою работу не шутили без моего согласия — можем так договориться?",
+              text: "🙏 Мне было неловко при всех.",
+              next: "fd1g",
+              tone: "giraffe",
+            },
+          ],
+        },
+        fd1g: {
+          speaker: "them",
+          messages: ["😳 О.", "❓ Что не так?"],
+          choices: [
+            {
+              text: "🤝 Про работу — не шутить без моего согласия. Договоримся?",
               next: "fd2b",
               tone: "giraffe",
             },
@@ -213,18 +224,23 @@ export default {
         },
         fd2a: {
           speaker: "them",
-          messages: ["🚪 Слушай, если так, то и общаться не о чем."],
-          choices: [{ text: "⏸️ Пауза. Вернуться к фактам и чувству позже.", next: "end", tone: "neutral" }],
+          messages: ["🚪 Тогда не о чем.", "😤 Всё."],
+          choices: [{ text: "⏸️ Пауза. Позже к фактам.", next: "end", tone: "neutral" }],
         },
         fd2b: {
           speaker: "them",
-          messages: ["🙂 Понял(а).", "💭 Не знал(а), что это задело."],
-          choices: [{ text: "👍 Хорошо.", next: "fd2b2", tone: "neutral" }],
+          messages: ["🙂 Понял(а).", "💭 Не знал(а), что задело."],
+          choices: [{ text: "👍 Ок.", next: "fd2b2", tone: "neutral" }],
         },
         fd2b2: {
           speaker: "them",
-          messages: ["🤝 В следующий раз спрошу заранее или не буду шутить про работу."],
-          choices: [{ text: "🙏 Спасибо, что услышал(а).", next: "end", tone: "neutral" }],
+          messages: ["🤝 В следующий раз спрошу.", "😐 Или не про работу."],
+          choices: [{ text: "🙏 Спасибо.", next: "fd2b3", tone: "neutral" }],
+        },
+        fd2b3: {
+          speaker: "them",
+          messages: ["🙂 Рад(а), что сказал(а)."],
+          choices: [{ text: "👋 И я.", next: "end", tone: "neutral" }],
         },
         end: {
           speaker: "them",
